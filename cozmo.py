@@ -102,15 +102,15 @@ async def on_message(message):
                     target_info = pending_timeouts[message.author.id]
                     target = target_info["target"]
                     guild = target_info["guild"]
-                    channel = target_info["channel"]
                     
                     if content == "oui":
                         try:
-                            await message.author.send(f"✅ C'est parti ! Envoi de 999 pings sur {target.name} dans le serveur {guild.name}...")
-                            for i in range(999):
-                                await channel.send(f"{target.mention} (Récidive surveillée par @{message.author.name})")
+                            await message.author.send(f"✅ C'est parti ! Envoi de 100 pings en Message Privé sur {target.name}...")
+                            # Boucle pour envoyer 100 pings en DM à la cible
+                            for i in range(100):
+                                await target.send(f"{target.mention} (Spam en DM validé par @{message.author.name} depuis le serveur {guild.name})")
                         except Exception as e:
-                            await message.author.send(f"❌ Erreur lors du spam de pings : {e}")
+                            await message.author.send(f"❌ Erreur lors du spam de pings en DM : {e}")
                     else:
                         await message.author.send("✅ Action annulée.")
                     
@@ -318,14 +318,13 @@ async def on_message(message):
             if victime_obj:
                 pending_timeouts[victime_obj.id] = {
                     "target": message.author,
-                    "guild": message.guild,
-                    "channel": message.channel
+                    "guild": message.guild
                 }
                 try:
                     await victime_obj.send(
                         f"🚨 **Cible verrouillée** 🚨\n"
                         f"L'utilisateur **{message.author.name}** (sur le serveur *{message.guild.name}*) a prononcé ton nom ou t'a mentionné.\n"
-                        f"Voulez-vous lui envoyer un spam de 999 pings ? Répondez **oui** ou **non**."
+                        f"Voulez-vous lui envoyer un spam de 100 pings en message privé (DM) ? Répondez **oui** ou **non**[cite: 5]."
                     )
                 except Exception as e:
                     print(f"Erreur envoi DM m1zuki_1 : {e}")
