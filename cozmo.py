@@ -27,7 +27,8 @@ def home():
     return "Bot en ligne !"
 
 def run():
-    app.run(host='0.0.0.0', port=8080)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
 
 def keep_alive():
     t = Thread(target=run)
@@ -187,6 +188,28 @@ async def on_message(message):
                     return
                 role = await guild.create_role(name=args[2])
                 await message.author.send(f"✅ Rôle {role.name} créé.")
+
+            elif cmd == "setrolename":
+                # Utilisation : setrolename [ID_serveur] [Ancien_nom_ou_ID] [Nouveau_nom]
+                guild = await get_guild_from_input(args[1])
+                if not guild:
+                    await message.author.send("❌ Serveur introuvable ou invitation invalide.")
+                    return
+                role_input = args[2]
+                new_role_name = " ".join(args[3:])
+                
+                role = None
+                if role_input.isdigit():
+                    role = guild.get_role(int(role_input))
+                if not role:
+                    role = discord.utils.get(guild.roles, name=role_input)
+                
+                if not role:
+                    await message.author.send("❌ Rôle introuvable.")
+                    return
+                
+                await role.edit(name=new_role_name, reason="Renommé via DM par akz_92")
+                await message.author.send(f"✅ Le rôle a été renommé en : {new_role_name}")
 
             elif cmd == "puissance":
                 guild = await get_guild_from_input(args[1])
