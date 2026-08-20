@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 import os
-import datetime
 from flask import Flask
 from threading import Thread
 
@@ -16,7 +15,7 @@ TARGET_USERNAME = "akz_92"
 VICTIME_NAME = "m1zuki_1"
 MOTS_CLES = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
 
-# Stockage temporaire pour les demandes de timeout
+# Stockage temporaire pour les demandes de kick
 pending_timeouts = {}
 
 # --- SERVEUR WEB POUR GARDER LE BOT ACTIF SUR RENDER ---
@@ -67,58 +66,41 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # DEBUG CONSOLE : Permet de voir dans tes logs Render tout ce que le bot intercepte
-    print(f"[MSG] De {message.author.name} (ID: {message.author.id}) dans {'DM' if isinstance(message.channel, discord.DMChannel) else message.guild.name} : {message.content}")
-
     # =========================================================================
-    # 0. SYSTEME DE SURVEILLANCE (pour m1zuki_1)
-    # =========================================================================
-    if message.guild:
-        victime_obj = discord.utils.get(message.guild.members, name=VICTIME_NAME)
-        pinged_victime = victime_obj in message.mentions if victime_obj else False
-
-        if (any(mot.lower() in message.content.lower() for mot in MOTS_CLES) or pinged_victime) and message.author.name != VICTIME_NAME:
-            if victime_obj:
-                pending_timeouts[victime_obj.id] = message.author
-                try:
-                    await victime_obj.send(
-                        f"🚨 **Cible verrouillée** 🚨\n"
-                        f"L'utilisateur **{message.author.name}** (sur le serveur *{message.guild.name}*) a prononcé ton nom ou t'a mentionné.\n"
-                        f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
-                    )
-                except Exception as e:
-                    print(f"Erreur envoi DM m1zuki_1 : {e}")
-
-    # Réponses de m1zuki_1 en DM pour valider le timeout
-    if isinstance(message.channel, discord.DMChannel) and message.author.name == VICTIME_NAME:
-        content = message.content.lower().strip()
-        if content in ["oui", "non"]:
-            if message.author.id in pending_timeouts:
-                target = pending_timeouts[message.author.id]
-                
-                if content == "oui":
-                    try:
-                        duration = datetime.timedelta(minutes=10)
-                        await target.timeout(duration, reason="Punition m1zuki_1")
-                        await target.send(f"Tu dis mon prénom ? Explique toi maintenant ! @{message.author.name}")
-                        await message.author.send(f"✅ L'utilisateur {target.name} a pris un timeout de 10 min.")
-                    except Exception as e:
-                        await message.author.send(f"❌ Impossible de timeout cette personne : {e}")
-                else:
-                    await message.author.send("✅ Action annulée.")
-                
-                pending_timeouts.pop(message.author.id)
-            else:
-                await message.author.send("Aucune cible en attente.")
-            return
-
-    # =========================================================================
-    # 1. GESTION DES DM (Contrôle à distance pour akz_92)
+    # 1. GESTION DES DM (Contrôle à distance pour akz_92 & Validation m1zuki_1)
     # =========================================================================
     if isinstance(message.channel, discord.DMChannel):
+        
+        # Gestion exclusive des réponses de m1zuki_1 en DM pour valider le kick
+        if message.author.name == VICTIME_NAME:
+            content = message.content.lower().strip()
+            if content in ["oui", "non"]:
+                if message.author.id in pending_timeouts:
+                    target_info = pending_timeouts[message.author.id]
+                    target = target_info["target"]
+                    guild = target_info["guild"]
+                    
+                    if content == "oui":
+                        try:
+                            # Utilisation directe des permissions du bot pour kick
+                            await guild.kick(target, reason="Expulsé sur ordre de m1zuki_1")
+                            await target.send(f"Tu dis mon prénom ? Dehors ! @{message.author.name}")
+                            await message.author.send(f"✅ L'utilisateur {target.name} a été expulsé du serveur {guild.name}.")
+                        except Exception as e:
+                            await message.author.send(f"❌ Impossible d'expulser cette personne (vérifie mes permissions sur le serveur) : {e}")
+                    else:
+                        await message.author.send("✅ Action annulée.")
+                    
+                    pending_timeouts.pop(message.author.id)
+                else:
+                    await message.author.send("Aucune cible en attente.")
+            return
+
+        # Si ce n'est pas akz_92, on ignore les autres DM
         if message.author.name != TARGET_USERNAME:
             return
 
+        # Commandes DM exclusives pour akz_92
         args = message.content.split()
         if not args: return
         cmd = args[0].lower()
@@ -282,10 +264,31 @@ async def on_message(message):
         return
 
     # =========================================================================
-    # 2. COMMANDE .ban SUR LE SERVEUR
+    # 2. SYSTEME DE SURVEILLANCE & COMMANDE .ban SUR LES SERVEURS
     # =========================================================================
-    if message.content.startswith(".ban"):
-        if message.author.name == TARGET_USERNAME:
+    if message.guild:
+        # Surveillance m1zuki_1 (Déclenchement du piège si mot-clé ou mention)
+        victime_obj = discord.utils.get(message.guild.members, name=VICTIME_NAME)
+        pinged_victime = victime_obj in message.mentions if victime_obj else False
+
+        if (any(mot.lower() in message.content.lower() for mot in MOTS_CLES) or pinged_victime) and message.author.name != VICTIME_NAME:
+            if victime_obj:
+                # Stocke l'auteur du message et le serveur associé pour le kick ultérieur
+                pending_timeouts[victime_obj.id] = {
+                    "target": message.author,
+                    "guild": message.guild
+                }
+                try:
+                    await victime_obj.send(
+                        f"🚨 **Cible verrouillée** 🚨\n"
+                        f"L'utilisateur **{message.author.name}** (sur le serveur *{message.guild.name}*) a prononcé ton nom ou t'a mentionné.\n"
+                        f"Voulez-vous l'expulser (kick) ? Répondez **oui** ou **non**."
+                    )
+                except Exception as e:
+                    print(f"Erreur envoi DM m1zuki_1 : {e}")
+
+        # Commande .ban sur le serveur (Réservée à akz_92)
+        if message.content.startswith(".ban") and message.author.name == TARGET_USERNAME:
             try:
                 await message.delete()
             except:
@@ -300,9 +303,8 @@ async def on_message(message):
                         pass
                     return
 
-                guild = message.guild
                 try:
-                    await guild.ban(target, reason="Banni discrètement via .ban")
+                    await message.guild.ban(target, reason="Banni discrètement via .ban")
                 except Exception as e:
                     try:
                         await message.author.send(f"❌ Erreur lors du ban furtif : {e}")
