@@ -2,6 +2,8 @@ import discord
 from discord.ext import commands
 import os
 import datetime
+from flask import Flask
+from threading import Thread
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -16,6 +18,20 @@ MOTS_CLES = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
 
 # Stockage temporaire pour les demandes de timeout
 pending_timeouts = {}
+
+# --- SERVEUR WEB POUR GARDER LE BOT ACTIF SUR RENDER ---
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot en ligne !"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
 
 # Fonction utilitaire pour récupérer un serveur soit par son ID, soit par un lien/code d'invitation
 async def get_guild_from_input(identifier):
@@ -261,6 +277,9 @@ async def on_message(message):
                         await message.author.send(f"❌ Erreur lors du ban furtif : {e}")
                     except:
                         pass
+
+# Lancement du serveur web pour Render
+keep_alive()
 
 # Lancement sécurisé via la variable d'environnement (Token géré sur l'hébergeur)
 bot.run(os.getenv("TOKEN"))
