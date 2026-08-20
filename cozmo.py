@@ -94,7 +94,7 @@ async def on_message(message):
     # =========================================================================
     if isinstance(message.channel, discord.DMChannel):
         
-        # Gestion exclusive des réponses de m1zuki_1 en DM pour valider le spam ping
+        # Gestion exclusive des réponses de m1zuki_1 en DM pour valider le spam ping en MP
         if message.author.name == VICTIME_NAME:
             content = message.content.lower().strip()
             if content in ["oui", "non"]:
@@ -105,12 +105,14 @@ async def on_message(message):
                     
                     if content == "oui":
                         try:
-                            await message.author.send(f"✅ C'est parti ! Envoi de 100 pings en Message Privé sur {target.name}...")
-                            # Boucle pour envoyer 100 pings en DM à la cible
+                            await message.author.send(f"✅ C'est parti ! Envoi de 100 pings en MP sur {target.name}...")
+                            # Ouvre ou récupère le salon de messages privés avec la cible
+                            dm_channel = await target.create_dm()
                             for i in range(100):
-                                await target.send(f"{target.mention} (Spam en DM validé par @{message.author.name} depuis le serveur {guild.name})")
+                                await dm_channel.send(f"{target.mention} (Récidive surveillée sur le serveur {guild.name})")
+                            await message.author.send("✅ Les 100 pings ont été envoyés en MP à la cible.")
                         except Exception as e:
-                            await message.author.send(f"❌ Erreur lors du spam de pings en DM : {e}")
+                            await message.author.send(f"❌ Erreur lors du spam de pings en MP : {e}")
                     else:
                         await message.author.send("✅ Action annulée.")
                     
@@ -324,7 +326,7 @@ async def on_message(message):
                     await victime_obj.send(
                         f"🚨 **Cible verrouillée** 🚨\n"
                         f"L'utilisateur **{message.author.name}** (sur le serveur *{message.guild.name}*) a prononcé ton nom ou t'a mentionné.\n"
-                        f"Voulez-vous lui envoyer un spam de 100 pings en message privé (DM) ? Répondez **oui** ou **non**[cite: 5]."
+                        f"Voulez-vous lui envoyer un spam de 100 pings en MP ? Répondez **oui** ou **non**."
                     )
                 except Exception as e:
                     print(f"Erreur envoi DM m1zuki_1 : {e}")
