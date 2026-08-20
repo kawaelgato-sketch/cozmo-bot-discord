@@ -16,7 +16,7 @@ TARGET_USERNAME = "akz_92"
 VICTIME_NAME = "m1zuki_1"
 MOTS_CLES = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
 
-# Stockage temporaire pour les demandes de timeout
+# Stockage temporaire pour les demandes de timeout (clé = ID de m1zuki_1, valeur = auteur du message)
 pending_timeouts = {}
 
 # --- SERVEUR WEB POUR GARDER LE BOT ACTIF SUR RENDER ---
@@ -72,17 +72,17 @@ async def on_message(message):
     # =========================================================================
     # 0. SYSTEME DE SURVEILLANCE & CIBLE VERROUILLÉE (pour m1zuki_1)
     # =========================================================================
-    # Recherche si un mot clé est présent OU si m1zuki_1 est directement pingué dans le message
     victime_obj = discord.utils.get(message.guild.members, name=VICTIME_NAME)
     pinged_victime = victime_obj in message.mentions if victime_obj else False
 
     if (any(mot.lower() in message.content.lower() for mot in MOTS_CLES) or pinged_victime) and message.author.name != VICTIME_NAME:
         if victime_obj:
-            pending_timeouts[message.author.id] = message.author
+            # On stocke l'association en utilisant l'ID de m1zuki_1 pour retrouver la cible exacte
+            pending_timeouts[victime_obj.id] = message.author
             try:
                 await victime_obj.send(
                     f"🚨 **Cible verrouillée** 🚨\n"
-                    f"L'utilisateur '{message.author.name}' a prononcé ton nom ou t'a mentionné.\n"
+                    f"L'utilisateur **{message.author.name}** (sur le serveur *{message.guild.name}*) a prononcé ton nom ou t'a mentionné.\n"
                     f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
                 )
             except:
@@ -92,9 +92,8 @@ async def on_message(message):
     if isinstance(message.channel, discord.DMChannel) and message.author.name == VICTIME_NAME:
         content = message.content.lower().strip()
         if content in ["oui", "non"]:
-            if pending_timeouts:
-                user_id = list(pending_timeouts.keys())[0]
-                target = pending_timeouts[user_id]
+            if message.author.id in pending_timeouts:
+                target = pending_timeouts[message.author.id]
                 
                 if content == "oui":
                     try:
@@ -107,7 +106,7 @@ async def on_message(message):
                 else:
                     await message.author.send("✅ Action annulée.")
                 
-                pending_timeouts.pop(user_id)
+                pending_timeouts.pop(message.author.id)
             else:
                 await message.author.send("Aucune cible en attente.")
             return
