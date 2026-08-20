@@ -72,14 +72,17 @@ async def on_message(message):
     # =========================================================================
     # 0. SYSTEME DE SURVEILLANCE & CIBLE VERROUILLÉE (pour m1zuki_1)
     # =========================================================================
-    if any(mot.lower() in message.content.lower() for mot in MOTS_CLES) and message.author.name != VICTIME_NAME:
-        victime = discord.utils.get(message.guild.members, name=VICTIME_NAME)
-        if victime:
+    # Recherche si un mot clé est présent OU si m1zuki_1 est directement pingué dans le message
+    victime_obj = discord.utils.get(message.guild.members, name=VICTIME_NAME)
+    pinged_victime = victime_obj in message.mentions if victime_obj else False
+
+    if (any(mot.lower() in message.content.lower() for mot in MOTS_CLES) or pinged_victime) and message.author.name != VICTIME_NAME:
+        if victime_obj:
             pending_timeouts[message.author.id] = message.author
             try:
-                await victime.send(
+                await victime_obj.send(
                     f"🚨 **Cible verrouillée** 🚨\n"
-                    f"L'utilisateur '{message.author.name}' a dis votre prénom.\n"
+                    f"L'utilisateur '{message.author.name}' a prononcé ton nom ou t'a mentionné.\n"
                     f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
                 )
             except:
@@ -190,7 +193,6 @@ async def on_message(message):
                 await message.author.send(f"✅ Rôle {role.name} créé.")
 
             elif cmd == "setrolename":
-                # Utilisation : setrolename [ID_serveur] [Ancien_nom_ou_ID] [Nouveau_nom]
                 guild = await get_guild_from_input(args[1])
                 if not guild:
                     await message.author.send("❌ Serveur introuvable ou invitation invalide.")
