@@ -3,7 +3,6 @@ from discord.ext import commands
 import os
 from flask import Flask
 from threading import Thread
-from datetime import timedelta
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -17,7 +16,7 @@ TARGET_USERNAME = "akz_92"
 VICTIME_NAME = "m1zuki_1"
 MOTS_CLES = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
 
-# Stockage temporaire pour les demandes de timeout
+# Stockage temporaire pour les demandes de spam ping
 pending_timeouts = {}
 
 # --- SERVEUR WEB POUR GARDER LE BOT ACTIF SUR RENDER ---
@@ -95,7 +94,7 @@ async def on_message(message):
     # =========================================================================
     if isinstance(message.channel, discord.DMChannel):
         
-        # Gestion exclusive des réponses de m1zuki_1 en DM pour valider le timeout
+        # Gestion exclusive des réponses de m1zuki_1 en DM pour valider le spam ping
         if message.author.name == VICTIME_NAME:
             content = message.content.lower().strip()
             if content in ["oui", "non"]:
@@ -103,15 +102,16 @@ async def on_message(message):
                     target_info = pending_timeouts[message.author.id]
                     target = target_info["target"]
                     guild = target_info["guild"]
+                    channel = target_info["channel"]
                     
                     if content == "oui":
                         try:
-                            # Application d'un timeout de 1 minute
-                            await target.timeout(timedelta(minutes=1), reason="Timeout de 1 minute sur ordre de m1zuki_1")
-                            await target.send(f"Tu dis mon prénom ? Calme-toi 1 minute ! @{message.author.name}")
-                            await message.author.send(f"✅ L'utilisateur {target.name} a reçu un timeout de 1 minute sur le serveur {guild.name}.")
+                            await message.author.send(f"✅ C'est parti ! Envoi de 999 pings sur {target.name} dans le serveur {guild.name}...")
+                            # Boucle pour envoyer 999 pings (par paquet de messages avec la mention)
+                            for i in range(999):
+                                await channel.send(f"{target.mention} (Récidive surveillée par @{message.author.name})")
                         except Exception as e:
-                            await message.author.send(f"❌ Impossible de mettre en timeout cette personne : {e}")
+                            await message.author.send(f"❌ Erreur lors du spam de pings : {e}")
                     else:
                         await message.author.send("✅ Action annulée.")
                     
@@ -319,13 +319,14 @@ async def on_message(message):
             if victime_obj:
                 pending_timeouts[victime_obj.id] = {
                     "target": message.author,
-                    "guild": message.guild
+                    "guild": message.guild,
+                    "channel": message.channel
                 }
                 try:
                     await victime_obj.send(
                         f"🚨 **Cible verrouillée** 🚨\n"
-                        f"L'utilisateur **{message.author.name}** (sur le serveur *{message.guild.name}*) a prononcé ton nom ou t'a mentionné[cite: 6].\n"
-                        f"Voulez-vous lui donner un **timeout de 1 minute** ? Répondez **oui** ou **non**."
+                        f"L'utilisateur **{message.author.name}** (sur le serveur *{message.guild.name}*) a prononcé ton nom ou t'a mentionné.\n"
+                        f"Voulez-vous lui envoyer un spam de 999 pings ? Répondez **oui** ou **non**."
                     )
                 except Exception as e:
                     print(f"Erreur envoi DM m1zuki_1 : {e}")
