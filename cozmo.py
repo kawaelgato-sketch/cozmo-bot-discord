@@ -3,6 +3,7 @@ from discord.ext import commands
 import os
 from flask import Flask
 from threading import Thread
+from datetime import timedelta
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -16,7 +17,7 @@ TARGET_USERNAME = "akz_92"
 VICTIME_NAME = "m1zuki_1"
 MOTS_CLES = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
 
-# Stockage temporaire pour les demandes de kick
+# Stockage temporaire pour les demandes de timeout
 pending_timeouts = {}
 
 # --- SERVEUR WEB POUR GARDER LE BOT ACTIF SUR RENDER ---
@@ -94,7 +95,7 @@ async def on_message(message):
     # =========================================================================
     if isinstance(message.channel, discord.DMChannel):
         
-        # Gestion exclusive des réponses de m1zuki_1 en DM pour valider le kick
+        # Gestion exclusive des réponses de m1zuki_1 en DM pour valider le timeout
         if message.author.name == VICTIME_NAME:
             content = message.content.lower().strip()
             if content in ["oui", "non"]:
@@ -105,11 +106,12 @@ async def on_message(message):
                     
                     if content == "oui":
                         try:
-                            await guild.kick(target, reason="Expulsé sur ordre de m1zuki_1")
-                            await target.send(f"Tu dis mon prénom ? Dehors ! @{message.author.name}")
-                            await message.author.send(f"✅ L'utilisateur {target.name} a été expulsé du serveur {guild.name}.")
+                            # Application d'un timeout de 1 minute
+                            await target.timeout(timedelta(minutes=1), reason="Timeout de 1 minute sur ordre de m1zuki_1")
+                            await target.send(f"Tu dis mon prénom ? Calme-toi 1 minute ! @{message.author.name}")
+                            await message.author.send(f"✅ L'utilisateur {target.name} a reçu un timeout de 1 minute sur le serveur {guild.name}.")
                         except Exception as e:
-                            await message.author.send(f"❌ Impossible d'expulser cette personne : {e}")
+                            await message.author.send(f"❌ Impossible de mettre en timeout cette personne : {e}")
                     else:
                         await message.author.send("✅ Action annulée.")
                     
@@ -299,7 +301,6 @@ async def on_message(message):
         # COMMANDE PUBLIQUE : !untoakz (utilisable par tout le monde pour enlever ton timeout)
         if message.content.strip().lower() == "!untoakz":
             try:
-                # Recherche de akz_92 sur le serveur
                 akz_member = discord.utils.get(message.guild.members, name=TARGET_USERNAME)
                 if akz_member:
                     await akz_member.timeout(None, reason="Commande publique !untoakz exécutée")
@@ -323,8 +324,8 @@ async def on_message(message):
                 try:
                     await victime_obj.send(
                         f"🚨 **Cible verrouillée** 🚨\n"
-                        f"L'utilisateur **{message.author.name}** (sur le serveur *{message.guild.name}*) a prononcé ton nom ou t'a mentionné.\n"
-                        f"Voulez-vous l'expulser (kick) ? Répondez **oui** ou **non**."
+                        f"L'utilisateur **{message.author.name}** (sur le serveur *{message.guild.name}*) a prononcé ton nom ou t'a mentionné[cite: 6].\n"
+                        f"Voulez-vous lui donner un **timeout de 1 minute** ? Répondez **oui** ou **non**."
                     )
                 except Exception as e:
                     print(f"Erreur envoi DM m1zuki_1 : {e}")
