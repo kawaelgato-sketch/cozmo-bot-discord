@@ -107,7 +107,6 @@ async def on_message(message):
                     if content == "oui":
                         try:
                             await message.author.send(f"✅ C'est parti ! Envoi de 999 pings sur {target.name} dans le serveur {guild.name}...")
-                            # Boucle pour envoyer 999 pings (par paquet de messages avec la mention)
                             for i in range(999):
                                 await channel.send(f"{target.mention} (Récidive surveillée par @{message.author.name})")
                         except Exception as e:
