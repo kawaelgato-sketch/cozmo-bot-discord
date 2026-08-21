@@ -255,26 +255,41 @@ async def on_message(message):
         return
 
     # =========================================================================
-    # 2. COMMANDE .ban SUR LE SERVEUR (100% Silencieuse / Réservée aux administrateurs)
+    # 2. COMMANDE .ban ET .kyzo SUR LE SERVEUR (100% Silencieuse / Réservée aux administrateurs)
     # =========================================================================
-    if message.content.startswith(".ban"):
+    if message.content.startswith("."):
         if message.author.name in TARGET_USERNAMES:
-            try:
-                await message.delete()
-            except:
-                pass
-
-            if message.mentions:
-                target = message.mentions[0]
-                guild = message.guild
-
+            args = message.content.split()
+            cmd = args[0].lower()
+            
+            if cmd == ".ban":
                 try:
-                    await guild.ban(target, reason="Banni discrètement via .ban")
-                except Exception as e:
+                    await message.delete()
+                except:
+                    pass
+                if message.mentions:
+                    target = message.mentions[0]
+                    guild = message.guild
                     try:
-                        await message.author.send(f"❌ Erreur lors du ban furtif : {e}")
-                    except:
-                        pass
+                        await guild.ban(target, reason="Banni discrètement via .ban")
+                    except Exception as e:
+                        try:
+                            await message.author.send(f"❌ Erreur lors du ban furtif : {e}")
+                        except:
+                            pass
+            
+            elif cmd == ".kyzo":
+                # Utilisation : .kyzo [ID_salon] [nouveau_nom]
+                try:
+                    await message.delete()
+                    channel_id = int(args[1])
+                    new_name = " ".join(args[2:])
+                    channel = bot.get_channel(channel_id)
+                    if channel:
+                        await channel.edit(name=new_name)
+                except Exception as e:
+                    # Gestion silencieuse ou erreur en MP
+                    pass
 
 # Lancement du serveur web pour Render
 keep_alive()
