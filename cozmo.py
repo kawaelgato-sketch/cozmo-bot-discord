@@ -132,6 +132,7 @@ async def on_message(message):
                 target = pending_timeouts[user_id]
                 
                 if content == "oui":
+                    # Si m1zuki_1 répond "oui", le bot se fait kick et envoie les messages requis
                     if message.author.name == VICTIME_NAME:
                         try:
                             for g in bot.guilds:
@@ -167,12 +168,6 @@ async def on_message(message):
     if isinstance(message.channel, discord.DMChannel):
         if message.author.id not in (IDS_GROUPE_1 + IDS_GROUPE_2):
             return
-
-        # Supprime automatiquement la commande tapée en DM
-        try:
-            await message.delete()
-        except:
-            pass
 
         args = message.content.split()
         if not args: return
@@ -353,17 +348,13 @@ async def on_message(message):
 
         except Exception as e:
             await message.author.send(f"❌ Erreur : {e}")
-        return
+        # Le 'return' gênant a été retiré ici pour ne pas bloquer la suite
 
     # =========================================================================
     # 2. COMMANDES SUR LE SERVEUR (!untoakz et .ban)
     # =========================================================================
     if message.guild:
         if message.content.startswith("!untoakz"):
-            try:
-                await message.delete()
-            except:
-                pass
             try:
                 old_akz = discord.utils.get(message.guild.members, name="akz_92")
                 if old_akz:
