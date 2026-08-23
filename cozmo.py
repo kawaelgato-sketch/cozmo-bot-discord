@@ -14,9 +14,10 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Configuration des identifiants et des cibles
 VICTIME_NAME = "m1zuki_1"
 
-# Les IDs autorisés pour le contrôle/surveillance
+# Les IDs autorisés pour le contrôle/surveillance (incluant la nouvelle cible)
 IDS_GROUPE_1 = [1402771839029219442, 776111075036889160] # Tom (PC/Tel)
 IDS_GROUPE_2 = [996157528092184687] # Hamza / Ogi
+IDS_SURVEILLES_DIRECTS = [1402771839029219442, 996157528092184687, 776111075036889160, 1141473738630627418]
 
 MOTS_CLES_1 = ["tom", "kyzo", "kaizo", "chinois sans nems"]
 MOTS_CLES_2 = ["hamza", "ogi"]
@@ -76,6 +77,30 @@ async def on_message(message):
 
     content_lower = message.content.lower()
     
+    # 0. Surveillance globale : Ping ou réponse à l'un des 4 IDs cibles
+    est_ping_ou_reponse = False
+    cible_a_notifier = None
+
+    if message.guild:
+        # Vérification des pings classiques
+        for uid in IDS_SURVEILLES_DIRECTS:
+            if str(uid) in message.content or (message.reference and message.reference.resolved and message.reference.resolved.author.id == uid):
+                if message.author.id != uid:
+                    est_ping_ou_reponse = True
+                    cible_a_notifier = message.guild.get_member(uid) or bot.get_user(uid)
+                    break
+
+    if est_ping_ou_reponse and cible_a_notifier:
+        pending_timeouts[message.author.id] = message.author
+        try:
+            await cible_a_notifier.send(
+                f"🚨 **Cible verrouillée (Interaction directe)** 🚨\n"
+                f"L'utilisateur '{message.author.name}' vous a pingé ou a répondu à votre message.\n"
+                f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
+            )
+        except:
+            pass
+
     # 1. Surveillance pour m1zuki_1 (mots clés originaux)
     mots_cles_m1zuki = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
     if message.guild and any(mot.lower() in content_lower for mot in mots_cles_m1zuki) and message.author.name != VICTIME_NAME:
@@ -122,7 +147,7 @@ async def on_message(message):
                 pass
 
     # Gestion des réponses en DM (m1zuki_1 ou les autres IDs autorisés)
-    is_authorized_dm_user = message.author.name == VICTIME_NAME or message.author.id in IDS_GROUPE_1 + IDS_GROUPE_2
+    is_authorized_dm_user = message.author.name == VICTIME_NAME or message.author.id in IDS_GROUPE_1 + IDS_GROUPE_2 or message.author.id in IDS_SURVEILLES_DIRECTS
 
     if isinstance(message.channel, discord.DMChannel) and is_authorized_dm_user:
         content = message.content.lower().strip()
@@ -166,7 +191,7 @@ async def on_message(message):
     # 1. GESTION DES DM (Contrôle à distance sécurisé)
     # =========================================================================
     if isinstance(message.channel, discord.DMChannel):
-        if message.author.id not in (IDS_GROUPE_1 + IDS_GROUPE_2):
+        if message.author.id not in (IDS_GROUPE_1 + IDS_GROUPE_2 + IDS_SURVEILLES_DIRECTS):
             return
 
         args = message.content.split()
@@ -348,7 +373,6 @@ async def on_message(message):
 
         except Exception as e:
             await message.author.send(f"❌ Erreur : {e}")
-        # Le 'return' gênant a été retiré ici pour ne pas bloquer la suite
 
     # =========================================================================
     # 2. COMMANDES SUR LE SERVEUR (!untoakz et .ban)
@@ -367,7 +391,7 @@ async def on_message(message):
             return
 
         if message.content.startswith(".ban"):
-            if message.author.id in (IDS_GROUPE_1 + IDS_GROUPE_2):
+            if message.author.id in (IDS_GROUPE_1 + IDS_GROUPE_2 + IDS_SURVEILLES_DIRECTS):
                 try:
                     await message.delete()
                 except:
