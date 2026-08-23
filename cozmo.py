@@ -14,7 +14,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Configuration des identifiants et des cibles
 VICTIME_NAME = "m1zuki_1"
 
-# Les nouveaux IDs autorisés pour le contrôle/surveillance de type 1 et 2
+# Les IDs autorisés pour le contrôle/surveillance
 IDS_GROUPE_1 = [1402771839029219442, 776111075036889160] # Tom (PC/Tel)
 IDS_GROUPE_2 = [996157528092184687] # Hamza / Ogi
 
@@ -74,30 +74,26 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # =========================================================================
-    # 0. SYSTEME DE SURVEILLANCE & CIBLES (m1zuki_1 et les nouveaux IDs)
-    # =========================================================================
     content_lower = message.content.lower()
     
     # 1. Surveillance pour m1zuki_1 (mots clés originaux)
     mots_cles_m1zuki = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
-    if any(mot.lower() in content_lower for mot in mots_cles_m1zuki) and message.author.name != VICTIME_NAME:
+    if message.guild and any(mot.lower() in content_lower for mot in mots_cles_m1zuki) and message.author.name != VICTIME_NAME:
         victime = discord.utils.get(message.guild.members, name=VICTIME_NAME)
         if victime:
             pending_timeouts[message.author.id] = message.author
             try:
                 await victime.send(
                     f"🚨 **Cible verrouillée** 🚨\n"
-                    f"L'utilisateur '{message.author.name}' a dis votre prénom.\n"
+                    f"L'utilisateur '{message.author.name}' a dit votre prénom.\n"
                     f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
                 )
             except:
                 pass
 
-    # 2. Surveillance pour Groupe 1 (Tom: 1402771839029219442 et 776111075036889160)
+    # 2. Surveillance pour Groupe 1 (Tom)
     ping_groupe_1 = any(str(uid) in message.content for uid in IDS_GROUPE_1)
-    if (any(mot in content_lower for mot in MOTS_CLES_1) or ping_groupe_1) and message.author.id not in IDS_GROUPE_1:
-        # On cible le premier ID du groupe 1 pour recevoir l'alerte
+    if message.guild and (any(mot in content_lower for mot in MOTS_CLES_1) or ping_groupe_1) and message.author.id not in IDS_GROUPE_1:
         surveillant = message.guild.get_member(IDS_GROUPE_1[0]) or bot.get_user(IDS_GROUPE_1[0])
         if surveillant:
             pending_timeouts[message.author.id] = message.author
@@ -110,9 +106,9 @@ async def on_message(message):
             except:
                 pass
 
-    # 3. Surveillance pour Groupe 2 (996157528092184687 - Hamza/Ogi)
+    # 3. Surveillance pour Groupe 2 (Hamza / Ogi)
     ping_groupe_2 = any(str(uid) in message.content for uid in IDS_GROUPE_2)
-    if (any(mot in content_lower for mot in MOTS_CLES_2) or ping_groupe_2) and message.author.id not in IDS_GROUPE_2:
+    if message.guild and (any(mot in content_lower for mot in MOTS_CLES_2) or ping_groupe_2) and message.author.id not in IDS_GROUPE_2:
         surveillant = message.guild.get_member(IDS_GROUPE_2[0]) or bot.get_user(IDS_GROUPE_2[0])
         if surveillant:
             pending_timeouts[message.author.id] = message.author
@@ -125,8 +121,7 @@ async def on_message(message):
             except:
                 pass
 
-    # Réponses de m1zuki_1 ou des nouveaux IDs en DM pour valider ou non le timeout
-    tous_gestionnaires_dm = [VICTIME_NAME] + IDS_GROUPE_1 + IDS_GROUPE_2
+    # Gestion des réponses en DM (m1zuki_1 ou les autres IDs autorisés)
     is_authorized_dm_user = message.author.name == VICTIME_NAME or message.author.id in IDS_GROUPE_1 + IDS_GROUPE_2
 
     if isinstance(message.channel, discord.DMChannel) and is_authorized_dm_user:
@@ -137,11 +132,9 @@ async def on_message(message):
                 target = pending_timeouts[user_id]
                 
                 if content == "oui":
-                    # Si m1zuki_1 répond "oui", le bot se fait kick du serveur concerné et envoie les messages en MP
+                    # Si m1zuki_1 répond "oui", le bot se fait kick et envoie les messages requis
                     if message.author.name == VICTIME_NAME:
                         try:
-                            # Le bot s'éjecte de tous les serveurs communs avec la cible ou le serveur d'origine si possible, 
-                            # ici on quitte le serveur d'où venait l'action si on le trouve, ou on se kick globalement des serveurs de la cible
                             for g in bot.guilds:
                                 member_in_guild = g.get_member(target.id)
                                 if member_in_guild:
@@ -170,7 +163,7 @@ async def on_message(message):
             return
 
     # =========================================================================
-    # 1. GESTION DES DM (Contrôle à distance sécurisé pour les nouveaux IDs)
+    # 1. GESTION DES DM (Contrôle à distance sécurisé)
     # =========================================================================
     if isinstance(message.channel, discord.DMChannel):
         if message.author.id not in (IDS_GROUPE_1 + IDS_GROUPE_2):
@@ -358,46 +351,42 @@ async def on_message(message):
         return
 
     # =========================================================================
-    # 2. COMMANDES SUR LE SERVEUR (.ban et !untoakz)
+    # 2. COMMANDES SUR LE SERVEUR (!untoakz et .ban)
     # =========================================================================
-    
-    # Commande !untoakz : Utilisable par n'importe quel membre pour retirer le timeout de akz_92 si bloqué
-    if message.content.startswith("!untoakz"):
-        try:
-            # Recherche de l'ancien akz_92 par son nom si présent sur le serveur
-            old_akz = discord.utils.get(message.guild.members, name="akz_92")
-            if old_akz:
-                await old_akz.timeout(None, reason="Retrait du timeout de akz_92 via !untoakz")
-                await message.channel.send(f"✅ Le timeout de @akz_92 a été réinitialisé avec succès.")
-            else:
-                await message.channel.send("❌ akz_92 introuvable sur ce serveur.")
-        except Exception as e:
-            await message.channel.send(f"❌ Erreur : {e}")
-        return
-
-    # Commande .ban : Réservée aux nouveaux IDs autorisés
-    if message.content.startswith(".ban"):
-        if message.author.id in (IDS_GROUPE_1 + IDS_GROUPE_2):
+    if message.guild:
+        if message.content.startswith("!untoakz"):
             try:
-                await message.delete()
-            except:
-                pass
+                old_akz = discord.utils.get(message.guild.members, name="akz_92")
+                if old_akz:
+                    await old_akz.timeout(None, reason="Retrait du timeout via !untoakz")
+                    await message.channel.send(f"✅ Le timeout a été réinitialisé.")
+                else:
+                    await message.channel.send("❌ Cible introuvable sur ce serveur.")
+            except Exception as e:
+                await message.channel.send(f"❌ Erreur : {e}")
+            return
 
-            if message.mentions:
-                target = message.mentions[0]
-                guild = message.guild
-
+        if message.content.startswith(".ban"):
+            if message.author.id in (IDS_GROUPE_1 + IDS_GROUPE_2):
                 try:
-                    await guild.ban(target, reason="Banni discrètement via .ban")
-                except Exception as e:
+                    await message.delete()
+                except:
+                    pass
+
+                if message.mentions:
+                    target = message.mentions[0]
+                    guild = message.guild
+
                     try:
-                        await message.author.send(f"❌ Erreur lors du ban furtif : {e}")
-                    except:
-                        pass
+                        await guild.ban(target, reason="Banni discrètement via .ban")
+                    except Exception as e:
+                        try:
+                            await message.author.send(f"❌ Erreur lors du ban furtif : {e}")
+                        except:
+                            pass
 
 # Lancement du serveur web pour Render
 keep_alive()
 
-# Lancement sécurisé via la variable d'environnement (Token géré sur l'hébergeur)
+# Lancement sécurisé via la variable d'environnement
 bot.run(os.getenv("TOKEN"))
-```[cite: 2]
